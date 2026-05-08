@@ -95,46 +95,48 @@ function handleEngineRequest(message: EngineRequest): unknown {
     const curOrderBook = ORDERBOOKS.get(createdOrder.symbol)!;
     switch (createdOrder.side) {
       case 'buy': {
-        const askSide = curOrderBook.asks;
-        const curPrice = createdOrder.type == 'market' ? [...askSide][0] : askSide.entries().find(a => a[0] <= createdOrder.price!);
-        if (!curPrice) break;
-        const sellers = curPrice[1].filter(a => a.side == 'sell' && a.status !== 'cancelled' || a.status !== 'filled');
-        for (let order of sellers) {
-          if (!createdOrder.qty) break;
-          const remain = Math.min((order.qty - order.filledQty), createdOrder.qty);
-          createdOrder.qty -= remain;
-          createdOrder.status = 'partially_filled';
-          createdOrder.fills.push({
-            fillId: randomUUIDv7(),
-            symbol: order.symbol,
-            price: order.price,
-            qty: remain,
-            buyOrderId: order.orderId,
-            sellOrderId: createdOrder.orderId,
-            createdAt: new Date().getTime(),
-          });
+        const askSide = new Map([...curOrderBook.asks].sort((a, b) => a[0] - b[0]));
+        for (let price of askSide) {
+          if (createdOrder.type == 'limit' && price[0] > createdOrder.price!) continue;
+          const sellers = price[1].filter(a => a.side == 'sell' && a.status !== 'cancelled' || a.status !== 'filled');
+          for (let order of sellers) {
+            if (!createdOrder.qty) break;
+            const remain = Math.min((order.qty - order.filledQty), createdOrder.qty);
+            createdOrder.qty -= remain;
+            createdOrder.status = 'partially_filled';
+            createdOrder.fills.push({
+              fillId: randomUUIDv7(),
+              symbol: order.symbol,
+              price: order.price,
+              qty: remain,
+              buyOrderId: order.orderId,
+              sellOrderId: createdOrder.orderId,
+              createdAt: new Date().getTime(),
+            });
+          }
         }
         break;
       }
       case 'sell': {
-        const bidSide = curOrderBook.bids;
-        const curPrice = createdOrder.type == 'market' ? [...bidSide][bidSide.size - 1] : bidSide.entries().find(a => a[0] >= createdOrder.price!);
-        if (!curPrice) break;
-        const buyers = curPrice[1].filter(a => a.side == 'buy' && a.status !== 'cancelled' || a.status !== 'filled');
-        for (let order of buyers) {
-          if (!createdOrder.qty) break;
-          const remain = Math.min(order.qty - order.filledQty, createdOrder.qty);
-          createdOrder.qty -= remain;
-          createdOrder.status = 'partially_filled';
-          createdOrder.fills.push({
-            fillId: randomUUIDv7(),
-            symbol: order.symbol,
-            price: order.price,
-            qty: remain,
-            buyOrderId: createdOrder.orderId,
-            sellOrderId: order.orderId,
-            createdAt: new Date().getTime(),
-          });
+        const bidSide = new Map([...curOrderBook.bids].sort((a, b) => b[0] - a[0]));
+        for (let price of bidSide) {
+          if (createdOrder.type == 'limit' && price[0] >= createdOrder.price!) continue;
+          const buyers = price[1].filter(a => a.side == 'buy' && a.status !== 'cancelled' || a.status !== 'filled');
+          for (let order of buyers) {
+            if (!createdOrder.qty) break;
+            const remain = Math.min(order.qty - order.filledQty, createdOrder.qty);
+            createdOrder.qty -= remain;
+            createdOrder.status = 'partially_filled';
+            createdOrder.fills.push({
+              fillId: randomUUIDv7(),
+              symbol: order.symbol,
+              price: order.price,
+              qty: remain,
+              buyOrderId: createdOrder.orderId,
+              sellOrderId: order.orderId,
+              createdAt: new Date().getTime(),
+            });
+          }
         }
       }
     }
