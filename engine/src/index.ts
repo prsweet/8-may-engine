@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { createClient } from "redis";
 import { env } from "./utils/env.js";
-import { BALANCES, ORDERBOOKS, ORDERS, type OrderRecord, type OrderType, type Side } from "./store/exchange-store.js";
+import { BALANCES, ORDERBOOKS, ORDERS, type Balance, type OrderRecord, type OrderType, type RestingOrder, type Side } from "./store/exchange-store.js";
 import { markdown, randomUUIDv7 } from "bun";
 import { isPrivateIdentifier } from "typescript";
 
@@ -142,7 +142,6 @@ function handleEngineRequest(message: EngineRequest): unknown {
       if (createdOrder.side == 'buy') {
         if (!curOrderBook.bids.get(createdOrder.price!)) curOrderBook.bids.set(createdOrder.price!, []);
         const prices = curOrderBook.bids.get(createdOrder.price!)!;
-        BALANCES.set(createdOrder.userId, value)
         prices.push({
           orderId: createdOrder.orderId,
           userId: createdOrder.userId,
@@ -178,12 +177,8 @@ function handleEngineRequest(message: EngineRequest): unknown {
     }
     return createdOrder;
   }
-
-  if (message.type == 'get_user_balance') {
-    
-  }
   
-  throw new Error("TODO(student): implement this engine request type");
+  throw new Error("else nothing is done");
 }
 
 console.log(`Engine listening on Redis queue: ${env.incomingQueue}`);
